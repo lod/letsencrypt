@@ -113,13 +113,15 @@ class VirtualHost(object):  # pylint: disable=too-few-public-methods
     # ?: is used for not returning enclosed characters
     strip_name = re.compile(r"^(?:.+://)?([^ :$]*)")
 
-    def __init__(self, filep, path, addrs, ssl, enabled, name=None,
+    def __init__(self, filep, path, index, addrs, ssl, enabled, name=None,
                  aliases=None, modmacro=False):
 
         # pylint: disable=too-many-arguments
         """Initialize a VH."""
         self.filep = filep
         self.path = path
+        # Ensure index is an integer, not string, for comparisons
+        self.index = int(index) if index != None else None
         self.addrs = addrs
         self.name = name
         self.aliases = aliases if aliases is not None else set()
@@ -138,9 +140,18 @@ class VirtualHost(object):  # pylint: disable=too-few-public-methods
         return all_names
 
     def __str__(self):
+        print "<%s.%s at %s>" % (self.__class__.__module__, self.__class__.__name__, hex(id(self)) )
+        print  "File: %s %s" % (type(self.filep), self.filep)
+        print "Vhost path: " + self.path
+        print "Addresses:"
+        for addr in self.addrs:
+            print addr
+            print str(addr)
+
         return (
             "File: {filename}\n"
             "Vhost path: {vhpath}\n"
+            "Index: {index}\n"
             "Addresses: {addrs}\n"
             "Name: {name}\n"
             "Aliases: {aliases}\n"
@@ -149,6 +160,7 @@ class VirtualHost(object):  # pylint: disable=too-few-public-methods
             "mod_macro Vhost: {modmacro}".format(
                 filename=self.filep,
                 vhpath=self.path,
+                index=self.index,
                 addrs=", ".join(str(addr) for addr in self.addrs),
                 name=self.name if self.name is not None else "",
                 aliases=", ".join(name for name in self.aliases),
@@ -158,12 +170,35 @@ class VirtualHost(object):  # pylint: disable=too-few-public-methods
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return (self.filep == other.filep and self.path == other.path and
+            match = (self.filep == other.filep and
+                    self.path == other.path and
+                    self.index == other.index and
                     self.addrs == other.addrs and
                     self.get_names() == other.get_names() and
                     self.ssl == other.ssl and
                     self.enabled == other.enabled and
                     self.modmacro == other.modmacro)
+            if not match:
+                if self.filep != other.filep:
+                    print "filep: %s != %s" % (self.filep, other.filep)
+                elif self.path != other.path:
+                    print "path: %s != %s" % (self.path, other.path)
+                elif self.index != other.index:
+                    print "index: %s != %s" % (self.index, other.index)
+                elif self.addrs != other.addrs:
+                    print "addrs: %s != %s" % (self.addrs, other.addrs)
+                elif self.get_names() != other.get_names():
+                    print "get_names(): %s != %s" % (self.get_names(), other.get_names())
+                elif self.ssl != other.ssl:
+                    print "ssl: %s != %s" % (self.ssl, other.ssl)
+                elif self.enabled != other.enabled:
+                    print "enabled: %s != %s" % (self.enabled, other.enabled)
+                elif self.modmacro != other.modmacro:
+                    print "modmacro: %s != %s" % (self.modmacro, other.modmacro)
+                else:
+                    print "NOT EQUAL - Unknown reason"
+
+            return match
 
         return False
 

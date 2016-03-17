@@ -175,8 +175,10 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
 
         # Get all of the available vhosts
         self.vhosts = self.get_virtual_hosts()
+        print "TL3: %d" % len(self.vhosts)
 
         install_ssl_options_conf(self.mod_ssl_conf)
+        print "TL4: %d" % len(self.vhosts)
 
     def _check_aug_version(self):
         """ Checks that we have recent enough version of libaugeas.
@@ -405,6 +407,7 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
                                  in vhosts if vh.modmacro is False]
             if len(reasonable_vhosts) == 1:
                 best_candidate = reasonable_vhosts[0]
+        print "TL5: %d" % len(self.vhosts)
 
         return best_candidate
 
@@ -425,6 +428,11 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
         all_names = set()
 
         vhost_macro = []
+        print "TL7: %d" % len(self.vhosts)
+
+        for vhost in self.vhosts:
+            print vhost
+            print "\n"
 
         for vhost in self.vhosts:
             all_names.update(vhost.get_names())
@@ -500,6 +508,8 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
         :rtype: :class:`~letsencrypt_apache.obj.VirtualHost`
 
         """
+        print "_CREATE_VHOST: %s" % path
+
         addrs = set()
         args = self.aug.match(path + "/arg")
         for arg in args:
@@ -508,6 +518,9 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
 
         if self.parser.find_dir("SSLEngine", "on", start=path, exclude=False):
             is_ssl = True
+
+        index_match = re.search(r"\[(\d+)\]$", path)
+        index = index_match.group(1) if index_match else None
 
         # "SSLEngine on" might be set outside of <VirtualHost>
         # Treat vhosts with port 443 as ssl vhosts
@@ -525,7 +538,7 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
         if "/macro/" in path.lower():
             macro = True
 
-        vhost = obj.VirtualHost(filename, path, addrs, is_ssl,
+        vhost = obj.VirtualHost(filename, path, index, addrs, is_ssl,
                                 is_enabled, modmacro=macro)
         self._add_servernames(vhost)
         return vhost
@@ -541,6 +554,7 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
         # Search base config, and all included paths for VirtualHosts
         vhs = []
         vhost_paths = {}
+        vhsk = {}
         for vhost_path in self.parser.parser_paths.keys():
             paths = self.aug.match(
                 ("/files%s//*[label()=~regexp('%s')]" %
@@ -548,20 +562,43 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
             paths = [path for path in paths if os.path.basename(path) == "VirtualHost"]
             for path in paths:
                 new_vhost = self._create_vhost(path)
+                # Index multiple virtualhosts in the file
+                index_match = re.search(r"\[(\d+)\]$", path)
+                index = index_match.group(1) if index_match else ""
                 realpath = os.path.realpath(new_vhost.filep)
-                if realpath not in vhost_paths.keys():
-                    vhs.append(new_vhost)
-                    vhost_paths[realpath] = new_vhost.filep
-                elif realpath == new_vhost.filep:
+                realerpath = os.path.realpath(new_vhost.filep) + index
+                print "RealPath: " + realpath
+                print "RealerPath: " + realerpath
+                print "Path: " + path
+                print "Index: " + index
+                print new_vhost
+                print "filep: " + new_vhost.filep
+                #if realerpath not in vhost_paths.keys():
+                if realerpath not in vhsk.keys():
+                    print "NOT IN VHOST_PATHS"
+                    vhsk[realerpath] = new_vhost
+                    #vhs.append(new_vhost)
+                    #vhost_paths[realerpath] = realerpath
+                elif realerpath == new_vhost.filep + (str(new_vhost.index) if new_vhost.index != None else ""):
+                    print "MATCH FILEP"
                     # Prefer "real" vhost paths instead of symlinked ones
                     # ex: sites-enabled/vh.conf -> sites-available/vh.conf
 
                     # remove old (most likely) symlinked one
-                    vhs = [v for v in vhs if v.filep != vhost_paths[realpath]]
-                    vhs.append(new_vhost)
-                    vhost_paths[realpath] = realpath
+                    #vhs = [v for v in vhs if v.filep + (v.index or "") != vhost_paths[realerpath]]
+                    #vhs.append(new_vhost)
+                    #vhost_paths[realerpath] = realerpath
+                    vhsk[realerpath] = new_vhost
+                else:
+                    print "SKIPPED"
+                print "\n"
 
-        return vhs
+        print "LEN: %d" % len(vhsk)
+        #print vhost_paths
+        #print vhs
+        print vhsk
+
+        return vhsk.values()
 
     def is_name_vhost(self, target_addr):
         """Returns if vhost is a name based vhost
@@ -743,6 +780,7 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
         # Create the Vhost object
         ssl_vhost = self._create_vhost(vh_p)
         self.vhosts.append(ssl_vhost)
+        print "TL6: %d" % len(self.vhosts)
 
         # NOTE: Searches through Augeas seem to ruin changes to directives
         #       The configuration must also be saved before being searched

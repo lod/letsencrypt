@@ -105,11 +105,13 @@ def get_apache_configurator(
                     config=mock_le_config,
                     name="apache",
                     version=version)
+                print "TL11: %s" % getattr(config, 'vhosts', [])
                 # This allows testing scripts to set it a bit more quickly
                 if conf is not None:
                     config.conf = conf  # pragma: no cover
 
                 config.prepare()
+                print "TL12: %d" % len(getattr(config, 'vhosts', []))
 
     return config
 
@@ -124,38 +126,96 @@ def get_vh_truth(temp_dir, config_name):
             obj.VirtualHost(
                 os.path.join(prefix, "encryption-example.conf"),
                 os.path.join(aug_pre, "encryption-example.conf/VirtualHost"),
-                set([obj.Addr.fromstring("*:80")]),
+                None, set([obj.Addr.fromstring("*:80")]),
                 False, True, "encryption-example.demo"),
             obj.VirtualHost(
                 os.path.join(prefix, "default-ssl.conf"),
                 os.path.join(aug_pre, "default-ssl.conf/IfModule/VirtualHost"),
-                set([obj.Addr.fromstring("_default_:443")]), True, False),
+                None, set([obj.Addr.fromstring("_default_:443")]), True, False),
             obj.VirtualHost(
                 os.path.join(prefix, "000-default.conf"),
                 os.path.join(aug_pre, "000-default.conf/VirtualHost"),
-                set([obj.Addr.fromstring("*:80")]), False, True,
+                None, set([obj.Addr.fromstring("*:80")]), False, True,
                 "ip-172-30-0-17"),
             obj.VirtualHost(
                 os.path.join(prefix, "letsencrypt.conf"),
                 os.path.join(aug_pre, "letsencrypt.conf/VirtualHost"),
-                set([obj.Addr.fromstring("*:80")]), False, True,
+                None, set([obj.Addr.fromstring("*:80")]), False, True,
                 "letsencrypt.demo"),
             obj.VirtualHost(
                 os.path.join(prefix, "mod_macro-example.conf"),
                 os.path.join(aug_pre,
                              "mod_macro-example.conf/Macro/VirtualHost"),
-                set([obj.Addr.fromstring("*:80")]), False, True,
+                None, set([obj.Addr.fromstring("*:80")]), False, True,
                 modmacro=True),
             obj.VirtualHost(
                 os.path.join(prefix, "default-ssl-port-only.conf"),
                 os.path.join(aug_pre, ("default-ssl-port-only.conf/"
                                        "IfModule/VirtualHost")),
-                set([obj.Addr.fromstring("_default_:443")]), True, False),
+                None, set([obj.Addr.fromstring("_default_:443")]), True, False),
             obj.VirtualHost(
                 os.path.join(prefix, "wildcard.conf"),
                 os.path.join(aug_pre, "wildcard.conf/VirtualHost"),
-                set([obj.Addr.fromstring("*:80")]), False, False,
+                None, set([obj.Addr.fromstring("*:80")]), False, False,
                 "ip-172-30-0-17", aliases=["*.blue.purple.com"])
+        ]
+        return vh_truth
+
+    if config_name == "debian_apache_2_4/redirect_vhost":
+        prefix = os.path.join(
+            temp_dir, config_name, "apache2/sites-available")
+        aug_pre = "/files" + prefix
+        vh_truth = [
+            obj.VirtualHost(
+                os.path.join(prefix, "encryption-example.conf"),
+                os.path.join(aug_pre, "encryption-example.conf/VirtualHost"),
+                None, set([obj.Addr.fromstring("*:80")]),
+                False, True, "encryption-example.demo"),
+            obj.VirtualHost(
+                os.path.join(prefix, "default-ssl.conf"),
+                os.path.join(aug_pre, "default-ssl.conf/IfModule/VirtualHost"),
+                None, set([obj.Addr.fromstring("_default_:443")]), True, False),
+            obj.VirtualHost(
+                os.path.join(prefix, "000-default.conf"),
+                os.path.join(aug_pre, "000-default.conf/VirtualHost"),
+                None, set([obj.Addr.fromstring("*:80")]), False, True,
+                "ip-172-30-0-17"),
+            obj.VirtualHost(
+                os.path.join(prefix, "letsencrypt.conf"),
+                os.path.join(aug_pre, "letsencrypt.conf/VirtualHost"),
+                None, set([obj.Addr.fromstring("*:80")]), False, True,
+                "letsencrypt.demo"),
+            obj.VirtualHost(
+                os.path.join(prefix, "mod_macro-example.conf"),
+                os.path.join(aug_pre,
+                             "mod_macro-example.conf/Macro/VirtualHost"),
+                None, set([obj.Addr.fromstring("*:80")]), False, True,
+                modmacro=True),
+            obj.VirtualHost(
+                os.path.join(prefix, "default-ssl-port-only.conf"),
+                os.path.join(aug_pre, ("default-ssl-port-only.conf/"
+                                       "IfModule/VirtualHost")),
+                None, set([obj.Addr.fromstring("_default_:443")]), True, False),
+            obj.VirtualHost(
+                os.path.join(prefix, "wildcard.conf"),
+                os.path.join(aug_pre, "wildcard.conf/VirtualHost"),
+                None, set([obj.Addr.fromstring("*:80")]), False, False,
+                "ip-172-30-0-17", aliases=["*.blue.purple.com"]),
+            obj.VirtualHost(
+                os.path.join(prefix, "redirecter.conf"),
+                os.path.join(aug_pre, "redirecter.conf/VirtualHost[1]"),
+                1, set([obj.Addr.fromstring("*:443")]), True, True,
+                "redirecter.example.com", aliases=[]),
+            obj.VirtualHost(
+                os.path.join(prefix, "redirecter.conf"),
+                os.path.join(aug_pre, "redirecter.conf/VirtualHost[2]"),
+                2, set([obj.Addr.fromstring("*:80")]), False, True,
+                "redirecter.example.com", aliases=["example.com", "www.example.com", "www.redirecter.example.com"]),
+            obj.VirtualHost(
+                os.path.join(prefix, "redirecter.conf"),
+                os.path.join(aug_pre, "redirecter.conf/VirtualHost[3]"),
+                3, set([obj.Addr.fromstring("*:443")]), True, True,
+                "example.com", aliases=["www.example.com", "www.redirecter.example.com"])
         ]
         return vh_truth
 
