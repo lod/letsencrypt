@@ -132,7 +132,7 @@ class AddrTest(unittest.TestCase):
 
         self.assertTrue(self.addr.strong_conflicts(self.addr))
         self.assertFalse(self.addr.strong_conflicts(self.addr1))
-        self.assertFalse(self.addr.strong_conflicts(self.addr2)) # Unclear who wins...
+        self.assertFalse(self.addr.strong_conflicts(self.addr2))  # Unclear who wins...
         self.assertFalse(self.addr.strong_conflicts(self.addr_defined))
         self.assertFalse(self.addr.strong_conflicts(self.addr_default))
 

@@ -88,7 +88,6 @@ class Addr(common.Addr):
         """
         return self.conflicts(addr) and addr.conflicts(self)
 
-
     def is_wildcard(self):
         """Returns if address has a wildcard port."""
         return self.tup[1] == "*" or not self.tup[1]
@@ -142,7 +141,7 @@ class VirtualHost(object):  # pylint: disable=too-few-public-methods
         self.filep = filep
         self.path = path
         # Ensure index is an integer, not string, for comparisons
-        self.index = int(index) if index != None else None
+        self.index = int(index) if index is not None else None
         self.addrs = addrs
         self.name = name
         self.aliases = aliases if aliases is not None else set()
@@ -161,14 +160,6 @@ class VirtualHost(object):  # pylint: disable=too-few-public-methods
         return all_names
 
     def __str__(self):
-        print "<%s.%s at %s>" % (self.__class__.__module__, self.__class__.__name__, hex(id(self)) )
-        print  "File: %s %s" % (type(self.filep), self.filep)
-        print "Vhost path: " + self.path
-        print "Addresses:"
-        for addr in self.addrs:
-            print addr
-            print str(addr)
-
         return (
             "File: {filename}\n"
             "Vhost path: {vhpath}\n"
@@ -191,7 +182,7 @@ class VirtualHost(object):  # pylint: disable=too-few-public-methods
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            match = (self.filep == other.filep and
+            return (self.filep == other.filep and
                     self.path == other.path and
                     self.index == other.index and
                     self.addrs == other.addrs and
@@ -199,28 +190,6 @@ class VirtualHost(object):  # pylint: disable=too-few-public-methods
                     self.ssl == other.ssl and
                     self.enabled == other.enabled and
                     self.modmacro == other.modmacro)
-            if not match:
-                if self.filep != other.filep:
-                    print "filep: %s != %s" % (self.filep, other.filep)
-                elif self.path != other.path:
-                    print "path: %s != %s" % (self.path, other.path)
-                elif self.index != other.index:
-                    print "index: %s != %s" % (self.index, other.index)
-                elif self.addrs != other.addrs:
-                    print "addrs: %s != %s" % (self.addrs, other.addrs)
-                elif self.get_names() != other.get_names():
-                    print "get_names(): %s != %s" % (self.get_names(), other.get_names())
-                elif self.ssl != other.ssl:
-                    print "ssl: %s != %s" % (self.ssl, other.ssl)
-                elif self.enabled != other.enabled:
-                    print "enabled: %s != %s" % (self.enabled, other.enabled)
-                elif self.modmacro != other.modmacro:
-                    print "modmacro: %s != %s" % (self.modmacro, other.modmacro)
-                else:
-                    print "NOT EQUAL - Unknown reason"
-
-            return match
-
         return False
 
     def __ne__(self, other):

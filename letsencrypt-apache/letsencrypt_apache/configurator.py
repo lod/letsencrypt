@@ -568,9 +568,7 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
 
         """
         # Search base config, and all included paths for VirtualHosts
-        vhs = []
-        vhost_paths = {}
-        vhsk = {}
+        vhsd = {}
         for vhost_path in self.parser.parser_paths.keys():
             paths = self.aug.match(
                 ("/files%s//*[label()=~regexp('%s')]" %
@@ -578,43 +576,24 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
             paths = [path for path in paths if os.path.basename(path) == "VirtualHost"]
             for path in paths:
                 new_vhost = self._create_vhost(path)
-                # Index multiple virtualhosts in the file
+
+                # If there are multiple virtualhosts in a file they are indexed
                 index_match = re.search(r"\[(\d+)\]$", path)
                 index = index_match.group(1) if index_match else ""
-                realpath = os.path.realpath(new_vhost.filep)
                 realerpath = os.path.realpath(new_vhost.filep) + index
-                print "RealPath: " + realpath
-                print "RealerPath: " + realerpath
-                print "Path: " + path
-                print "Index: " + index
-                print new_vhost
-                print "filep: " + new_vhost.filep
-                #if realerpath not in vhost_paths.keys():
-                if realerpath not in vhsk.keys():
-                    print "NOT IN VHOST_PATHS"
-                    vhsk[realerpath] = new_vhost
-                    #vhs.append(new_vhost)
-                    #vhost_paths[realerpath] = realerpath
-                elif realerpath == new_vhost.filep + (str(new_vhost.index) if new_vhost.index != None else ""):
-                    print "MATCH FILEP"
+
+                if realerpath not in vhsd.keys():
+                    vhsd[realerpath] = new_vhost
+                elif realerpath == new_vhost.filep + (
+                        str(new_vhost.index)
+                            if new_vhost.index is not None
+                            else ""
+                        ):
                     # Prefer "real" vhost paths instead of symlinked ones
                     # ex: sites-enabled/vh.conf -> sites-available/vh.conf
+                    vhsd[realerpath] = new_vhost
 
-                    # remove old (most likely) symlinked one
-                    #vhs = [v for v in vhs if v.filep + (v.index or "") != vhost_paths[realerpath]]
-                    #vhs.append(new_vhost)
-                    #vhost_paths[realerpath] = realerpath
-                    vhsk[realerpath] = new_vhost
-                else:
-                    print "SKIPPED"
-                print "\n"
-
-        print "LEN: %d" % len(vhsk)
-        #print vhost_paths
-        #print vhs
-        print vhsk
-
-        return vhsk.values()
+        return vhsd.values()
 
     def is_name_vhost(self, target_addr):
         """Returns if vhost is a name based vhost
