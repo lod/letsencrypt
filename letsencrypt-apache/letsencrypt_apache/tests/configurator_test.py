@@ -85,7 +85,7 @@ class TwoVhost80Test(util.ApacheTest):
         mock_getutility.notification = mock.MagicMock(return_value=True)
         names = self.config.get_all_names()
         self.assertEqual(names, set(
-            ["letsencrypt.demo", "encryption-example.demo", "ip-172-30-0-17", "*.blue.purple.com"]))
+            ["letsencrypt.demo", "encryption-example.demo", "ip-172-30-0-17", "*.blue.purple.com", "redirecter.example.com", "example.com", "www.example.com", "www.redirecter.example.com"]))
 
     @mock.patch("zope.component.getUtility")
     @mock.patch("letsencrypt_apache.configurator.socket.gethostbyaddr")
@@ -95,18 +95,23 @@ class TwoVhost80Test(util.ApacheTest):
         notification.notification = mock.Mock(return_value=True)
         mock_getutility.return_value = notification
         vhost = obj.VirtualHost(
-            "fp", "ap",
-            set([obj.Addr(("8.8.8.8", "443")),
-                 obj.Addr(("zombo.com",)),
-                 obj.Addr(("192.168.1.2"))]),
+            "fp", "ap", None,
+            set([obj.Addr.fromstring("8.8.8.8:443"),
+                 obj.Addr.fromstring("zombo.com"),
+                 obj.Addr.fromstring("192.168.1.2")]),
             True, False)
         self.config.vhosts.append(vhost)
 
         names = self.config.get_all_names()
-        self.assertEqual(len(names), 6)
+        self.assertEqual(len(names), 10)
+        # TODO: Switch to Set and to == comparison
         self.assertTrue("zombo.com" in names)
         self.assertTrue("google.com" in names)
         self.assertTrue("letsencrypt.demo" in names)
+        self.assertTrue("example.com" in names)
+        self.assertTrue("www.example.com" in names)
+        self.assertTrue("redirecter.example.com" in names)
+        self.assertTrue("www.redirecter.example.com" in names)
 
     def test_add_servernames_alias(self):
         self.config.parser.add_dir(
@@ -124,7 +129,7 @@ class TwoVhost80Test(util.ApacheTest):
 
         """
         vhs = self.config.get_virtual_hosts()
-        self.assertEqual(len(vhs), 7)
+        self.assertEqual(len(vhs), len(self.vh_truth))
         found = 0
 
         for vhost in vhs:
@@ -135,7 +140,7 @@ class TwoVhost80Test(util.ApacheTest):
             else:
                 raise Exception("Missed: %s" % vhost)  # pragma: no cover
 
-        self.assertEqual(found, 7)
+        self.assertEqual(found, len(self.vh_truth))
 
         # Handle case of non-debian layout get_virtual_hosts
         with mock.patch(
@@ -143,7 +148,7 @@ class TwoVhost80Test(util.ApacheTest):
         ) as mock_conf:
             mock_conf.return_value = False
             vhs = self.config.get_virtual_hosts()
-            self.assertEqual(len(vhs), 7)
+            self.assertEqual(len(vhs), len(self.vh_truth))
 
     @mock.patch("letsencrypt_apache.display_ops.select_vhost")
     def test_choose_vhost_none_avail(self, mock_select):
@@ -179,7 +184,7 @@ class TwoVhost80Test(util.ApacheTest):
     def test_choose_vhost_select_vhost_conflicting_non_ssl(self, mock_select):
         mock_select.return_value = self.vh_truth[3]
         conflicting_vhost = obj.VirtualHost(
-            "path", "aug_path", set([obj.Addr.fromstring("*:443")]),
+            "path", "aug_path", None, set([obj.Addr.fromstring("*:443")]),
             True, True)
         self.config.vhosts.append(conflicting_vhost)
 
@@ -213,19 +218,19 @@ class TwoVhost80Test(util.ApacheTest):
     def test_find_best_vhost_variety(self):
         # pylint: disable=protected-access
         ssl_vh = obj.VirtualHost(
-            "fp", "ap", set([obj.Addr(("*", "443")),
-                             obj.Addr(("zombo.com",))]),
+            "fp", "ap", None,
+            set([obj.Addr(("*", "443")), obj.Addr(("zombo.com",))]),
             True, False)
         self.config.vhosts.append(ssl_vh)
         self.assertEqual(self.config._find_best_vhost("zombo.com"), ssl_vh)
 
     def test_find_best_vhost_default(self):
         # pylint: disable=protected-access
-        # Assume only the two default vhosts.
+        # Only choose from the default vhosts.
+
         self.config.vhosts = [
             vh for vh in self.config.vhosts
-            if vh.name not in ["letsencrypt.demo", "encryption-example.demo"]
-            and "*.blue.purple.com" not in vh.aliases
+            if "default" in vh.path
         ]
 
         self.assertEqual(
@@ -233,7 +238,7 @@ class TwoVhost80Test(util.ApacheTest):
 
     def test_non_default_vhosts(self):
         # pylint: disable=protected-access
-        self.assertEqual(len(self.config._non_default_vhosts()), 5)
+        self.assertEqual(len(self.config._non_default_vhosts()), 8)
 
     def test_is_site_enabled(self):
         """Test if site is enabled.
@@ -292,7 +297,7 @@ class TwoVhost80Test(util.ApacheTest):
         self.assertRaises(
             errors.NotSupportedError,
             self.config.enable_site,
-            obj.VirtualHost("asdf", "afsaf", set(), False, False))
+            obj.VirtualHost("asdf", "afsaf", None, set(), False, False))
 
     def test_deploy_cert_newssl(self):
         self.config = util.get_apache_configurator(
@@ -539,7 +544,7 @@ class TwoVhost80Test(util.ApacheTest):
         self.assertEqual(self.config.is_name_vhost(self.vh_truth[0]),
                          self.config.is_name_vhost(ssl_vhost))
 
-        self.assertEqual(len(self.config.vhosts), 8)
+        self.assertEqual(len(self.config.vhosts), len(self.vh_truth) + 1)
 
     def test_clean_vhost_ssl(self):
         # pylint: disable=protected-access
@@ -727,15 +732,37 @@ class TwoVhost80Test(util.ApacheTest):
     def test_get_all_certs_keys(self):
         c_k = self.config.get_all_certs_keys()
 
-        self.assertEqual(len(c_k), 2)
-        cert, key, path = next(iter(c_k))
-        self.assertTrue("cert" in cert)
-        self.assertTrue("key" in key)
-        self.assertTrue("default-ssl" in path)
+        expected = {
+            "redirecter.conf" : (
+                "/etc/letsencrypt/live/redirecter.example.com/fullchain.pem",
+                "/etc/letsencrypt/live/redirecter.example.com/privkey.pem"
+                ),
+            "default-ssl-port-only.conf" : (
+                "/etc/apache2/certs/letsencrypt-cert_5.pem",
+                "/etc/apache2/ssl/key-letsencrypt_15.pem"
+                ),
+            "default-ssl.conf" : (
+                "/etc/apache2/certs/letsencrypt-cert_5.pem",
+                "/etc/apache2/ssl/key-letsencrypt_15.pem"
+                )
+            }
+
+        self.assertEqual(len(c_k), len(expected))
+        for cert, key, path in c_k:
+            path_tail = path.rsplit('/', 1)[1]
+            print path_tail
+            print cert
+            print key
+            print path
+            # Path is semi-random, path tail check is implicit in fetch
+            want = expected[path_tail]
+
+            self.assertEqual(want[0], cert)
+            self.assertEqual(want[1], key)
 
     def test_get_all_certs_keys_malformed_conf(self):
         self.config.parser.find_dir = mock.Mock(
-            side_effect=[["path"], [], ["path"], []])
+            side_effect=[["path"], [], ["path"], [], ["path"], [], ["path"], []])
         c_k = self.config.get_all_certs_keys()
 
         self.assertFalse(c_k)
@@ -761,7 +788,8 @@ class TwoVhost80Test(util.ApacheTest):
         self.config.parser.modules.add("rewrite_module")
         mock_exe.return_value = True
         ssl_vh = obj.VirtualHost(
-            "fp", "ap", set([obj.Addr(("*", "443"))]),
+            "fp", "ap", None,
+            set([obj.Addr(("*", "443"))]),
             True, False)
         ssl_vh.name = "satoshi.com"
         self.config.vhosts.append(ssl_vh)
@@ -929,8 +957,8 @@ class TwoVhost80Test(util.ApacheTest):
     def test_redirect_with_conflict(self):
         self.config.parser.modules.add("rewrite_module")
         ssl_vh = obj.VirtualHost(
-            "fp", "ap", set([obj.Addr(("*", "443")),
-                             obj.Addr(("zombo.com",))]),
+            "fp", "ap", None,
+            set([obj.Addr(("*", "443")), obj.Addr(("zombo.com",))]),
             True, False)
         # No names ^ this guy should conflict.
 
@@ -957,7 +985,7 @@ class TwoVhost80Test(util.ApacheTest):
 
         # pylint: disable=protected-access
         self.config._enable_redirect(self.vh_truth[1], "")
-        self.assertEqual(len(self.config.vhosts), 8)
+        self.assertEqual(len(self.config.vhosts), len(self.vh_truth)+1)
 
     def test_create_own_redirect_for_old_apache_version(self):
         self.config.parser.modules.add("rewrite_module")
@@ -968,7 +996,7 @@ class TwoVhost80Test(util.ApacheTest):
 
         # pylint: disable=protected-access
         self.config._enable_redirect(self.vh_truth[1], "")
-        self.assertEqual(len(self.config.vhosts), 8)
+        self.assertEqual(len(self.config.vhosts), len(self.vh_truth)+1)
 
     def test_sift_line(self):
         # pylint: disable=protected-access

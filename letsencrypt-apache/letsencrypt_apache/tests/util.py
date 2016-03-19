@@ -118,7 +118,7 @@ def get_apache_configurator(
 
 def get_vh_truth(temp_dir, config_name):
     """Return the ground truth for the specified directory."""
-    if config_name == "debian_apache_2_4/two_vhost_80":
+    if config_name == "debian_apache_2_4/two_vhost_80_hide":
         prefix = os.path.join(
             temp_dir, config_name, "apache2/sites-available")
         aug_pre = "/files" + prefix
@@ -161,7 +161,8 @@ def get_vh_truth(temp_dir, config_name):
         ]
         return vh_truth
 
-    if config_name == "debian_apache_2_4/redirect_vhost":
+    #if config_name == "debian_apache_2_4/redirect_vhost":
+    if config_name == "debian_apache_2_4/two_vhost_80":
         prefix = os.path.join(
             temp_dir, config_name, "apache2/sites-available")
         aug_pre = "/files" + prefix
