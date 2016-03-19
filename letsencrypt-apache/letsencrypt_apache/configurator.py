@@ -176,10 +176,8 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
 
         # Get all of the available vhosts
         self.vhosts = self.get_virtual_hosts()
-        print "TL3: %d" % len(self.vhosts)
 
         install_ssl_options_conf(self.mod_ssl_conf)
-        print "TL4: %d" % len(self.vhosts)
 
     def _check_aug_version(self):
         """ Checks that we have recent enough version of libaugeas.
@@ -338,21 +336,6 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
                     "The selected vhost would conflict with other HTTPS "
                     "VirtualHosts within Apache. Please select another "
                     "vhost or add ServerNames to your configuration.")
-                print "CONFLICT"
-                print proposed_vhost
-                for c in conflicts:
-                    print "Conflict XX"
-                    print c
-                for a in proposed_vhost.addrs:
-                    print "\t %s : %s" % (a.get_addr(), a.get_port())
-                for v in self.vhosts:
-                    print "%s: %s %s" % (v.path, v.enabled, v.strong_conflicts(proposed_vhost))
-                    if v.strong_conflicts(proposed_vhost):
-                        print v
-                        for a in v.addrs:
-                            print "%s:%s %s" % (a.get_addr(), a.get_port(), any(a.strong_conflicts(b) for b in proposed_vhost.addrs))
-                        print v.get_names()
-
                 raise errors.PluginError(
                     "VirtualHost not able to be selected.")
 
@@ -423,7 +406,6 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
                                  in vhosts if vh.modmacro is False]
             if len(reasonable_vhosts) == 1:
                 best_candidate = reasonable_vhosts[0]
-        print "TL5: %d" % len(self.vhosts)
 
         return best_candidate
 
@@ -444,11 +426,6 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
         all_names = set()
 
         vhost_macro = []
-        print "TL7: %d" % len(self.vhosts)
-
-        for vhost in self.vhosts:
-            print vhost
-            print "\n"
 
         for vhost in self.vhosts:
             all_names.update(vhost.get_names())
@@ -524,7 +501,6 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
         :rtype: :class:`~letsencrypt_apache.obj.VirtualHost`
 
         """
-        print "_CREATE_VHOST: %s" % path
 
         addrs = set()
         args = self.aug.match(path + "/arg")
@@ -775,7 +751,6 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
         # Create the Vhost object
         ssl_vhost = self._create_vhost(vh_p)
         self.vhosts.append(ssl_vhost)
-        print "TL6: %d" % len(self.vhosts)
 
         # NOTE: Searches through Augeas seem to ruin changes to directives
         #       The configuration must also be saved before being searched
@@ -1342,7 +1317,6 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
 
         for vhost in self.vhosts:
             if vhost.ssl:
-                print "CALL"
                 cert_path = self.parser.find_dir(
                     "SSLCertificateFile", None,
                     start=vhost.path, exclude=False)

@@ -770,10 +770,6 @@ class TwoVhost80Test(util.ApacheTest):
         self.assertEqual(len(c_k), len(expected))
         for cert, key, path in c_k:
             path_tail = path.rsplit('/', 1)[1]
-            print path_tail
-            print cert
-            print key
-            print path
             # Path is semi-random, path tail check is implicit in fetch
             want = expected[path_tail]
 

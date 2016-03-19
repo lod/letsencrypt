@@ -105,13 +105,11 @@ def get_apache_configurator(
                     config=mock_le_config,
                     name="apache",
                     version=version)
-                print "TL11: %s" % getattr(config, 'vhosts', [])
                 # This allows testing scripts to set it a bit more quickly
                 if conf is not None:
                     config.conf = conf  # pragma: no cover
 
                 config.prepare()
-                print "TL12: %d" % len(getattr(config, 'vhosts', []))
 
     return config
 
