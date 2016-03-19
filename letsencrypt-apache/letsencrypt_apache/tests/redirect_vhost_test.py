@@ -206,11 +206,11 @@ class RedirectTest(util.ApacheTest):
 
     def test_find_best_vhost_default(self):
         # pylint: disable=protected-access
-        # Assume only the two default vhosts.
+        # Only choose from the default vhosts.
+
         self.config.vhosts = [
             vh for vh in self.config.vhosts
-            if vh.name not in ["letsencrypt.demo", "encryption-example.demo"]
-            and "*.blue.purple.com" not in vh.aliases
+            if "default" in vh.path
         ]
 
         self.assertEqual(
@@ -218,7 +218,7 @@ class RedirectTest(util.ApacheTest):
 
     def test_non_default_vhosts(self):
         # pylint: disable=protected-access
-        self.assertEqual(len(self.config._non_default_vhosts()), 5)
+        self.assertEqual(len(self.config._non_default_vhosts()), 8)
 
     def test_is_site_enabled(self):
         """Test if site is enabled.
@@ -524,7 +524,7 @@ class RedirectTest(util.ApacheTest):
         self.assertEqual(self.config.is_name_vhost(self.vh_truth[0]),
                          self.config.is_name_vhost(ssl_vhost))
 
-        self.assertEqual(len(self.config.vhosts), 8)
+        self.assertEqual(len(self.config.vhosts), len(self.vh_truth) + 1)
 
     def test_clean_vhost_ssl(self):
         # pylint: disable=protected-access
@@ -712,15 +712,37 @@ class RedirectTest(util.ApacheTest):
     def test_get_all_certs_keys(self):
         c_k = self.config.get_all_certs_keys()
 
-        self.assertEqual(len(c_k), 2)
-        cert, key, path = next(iter(c_k))
-        self.assertTrue("cert" in cert)
-        self.assertTrue("key" in key)
-        self.assertTrue("default-ssl" in path)
+        expected = {
+            "redirecter.conf" : (
+                "/etc/letsencrypt/live/redirecter.example.com/fullchain.pem",
+                "/etc/letsencrypt/live/redirecter.example.com/privkey.pem"
+                ),
+            "default-ssl-port-only.conf" : (
+                "/etc/apache2/certs/letsencrypt-cert_5.pem",
+                "/etc/apache2/ssl/key-letsencrypt_15.pem"
+                ),
+            "default-ssl.conf" : (
+                "/etc/apache2/certs/letsencrypt-cert_5.pem",
+                "/etc/apache2/ssl/key-letsencrypt_15.pem"
+                )
+            }
+
+        self.assertEqual(len(c_k), len(expected))
+        for cert, key, path in c_k:
+            path_tail = path.rsplit('/', 1)[1]
+            print path_tail
+            print cert
+            print key
+            print path
+            # Path is semi-random, path tail check is implicit in fetch
+            want = expected[path_tail]
+
+            self.assertEqual(want[0], cert)
+            self.assertEqual(want[1], key)
 
     def test_get_all_certs_keys_malformed_conf(self):
         self.config.parser.find_dir = mock.Mock(
-            side_effect=[["path"], [], ["path"], []])
+            side_effect=[["path"], [], ["path"], [], ["path"], [], ["path"], []])
         c_k = self.config.get_all_certs_keys()
 
         self.assertFalse(c_k)
@@ -943,7 +965,7 @@ class RedirectTest(util.ApacheTest):
 
         # pylint: disable=protected-access
         self.config._enable_redirect(self.vh_truth[1], "")
-        self.assertEqual(len(self.config.vhosts), 8)
+        self.assertEqual(len(self.config.vhosts), len(self.vh_truth)+1)
 
     def test_create_own_redirect_for_old_apache_version(self):
         self.config.parser.modules.add("rewrite_module")
@@ -954,7 +976,7 @@ class RedirectTest(util.ApacheTest):
 
         # pylint: disable=protected-access
         self.config._enable_redirect(self.vh_truth[1], "")
-        self.assertEqual(len(self.config.vhosts), 8)
+        self.assertEqual(len(self.config.vhosts), len(self.vh_truth)+1)
 
     def test_sift_line(self):
         # pylint: disable=protected-access

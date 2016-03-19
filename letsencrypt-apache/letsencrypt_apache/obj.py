@@ -68,6 +68,27 @@ class Addr(common.Addr):
                 return True
         return False
 
+    def strong_conflicts(self, addr):
+        r""" Returns if address strongly clashes with self.
+
+        This is a stronger/stricter version of conflicts, wildcard overlaps
+        are triggered by conflicts() but not strong_conflicts().
+
+        Examples:
+
+        ==========================================   =====
+        ``127.0.0.1:\*.conflicts(127.0.0.1:443)``    False
+        ``127.0.0.1:443.conflicts(127.0.0.1:\*)``    False
+        ``\*:443.conflicts(\*:80)``                  False
+        ``_default_:443.conflicts(\*:443)``          False
+        ``\*:443.conflicts(\*:443)``                 True
+        ``_default_:443.conflicts(_default_:443)``   True
+        ==========================================   =====
+
+        """
+        return self.conflicts(addr) and addr.conflicts(self)
+
+
     def is_wildcard(self):
         """Returns if address has a wildcard port."""
         return self.tup[1] == "*" or not self.tup[1]
@@ -223,6 +244,52 @@ class VirtualHost(object):  # pylint: disable=too-few-public-methods
                 if addr.conflicts(pot_addr):
                     return True
         return False
+
+    def strong_conflicts(self, addrs):
+        """ See if vhost strongly clashes with any of the addrs.
+
+        This determines if the address will clash with the vhost address.
+        A wildcard overlap is not considered a clash.
+
+        :param addrs: Iterable Addresses
+        :type addrs: Iterable :class:~obj.Addr
+
+        :returns: If addresses strongly conflict with vhost
+        :rtype: bool
+
+        """
+        if isinstance(addrs, VirtualHost):
+            # Check for conflicting addresses, then check servernames
+            other_vhost = addrs
+            clashes = False
+            for pot_addr in other_vhost.addrs:
+                for addr in self.addrs:
+                    if addr.strong_conflicts(pot_addr):
+                        clashes = True
+
+            if clashes:
+                # Address clash is common with named based virtual hosts
+                # Test to see if the names clash
+
+                # ServerName may not be provided, this is a valid config
+                # The ServerName is inherited from the Apache config or the
+                # system. Unfortunately we can't determine it properly, so
+                # we assume a clash.
+                if len(self.name or "") == 0 or len(other_vhost.name or "") == 0:
+                    return True
+
+                # get_names() returns a Set, look for intersection
+                return len(self.get_names() & other_vhost.get_names()) > 0
+            else:
+                return False
+
+        else: # Iterable addresses
+            for pot_addr in addrs:
+                for addr in self.addrs:
+                    if addr.strong_conflicts(pot_addr):
+                        return True
+            return False
+
 
     def same_server(self, vhost, generic=False):
         """Determines if the vhost is the same 'server'.

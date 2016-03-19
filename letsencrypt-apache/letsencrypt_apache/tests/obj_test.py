@@ -123,6 +123,43 @@ class AddrTest(unittest.TestCase):
         # This is a tricky one...
         self.assertTrue(self.addr1.conflicts(self.addr2))
 
+    def test_strong_conflicts(self):
+        # addr         = "*:443"
+        # addr1        = "127.0.0.1"
+        # addr2        = "127.0.0.1:*"
+        # addr_defined = "127.0.0.1:443"
+        # addr_default = "_default_:443"
+
+        self.assertTrue(self.addr.strong_conflicts(self.addr))
+        self.assertFalse(self.addr.strong_conflicts(self.addr1))
+        self.assertFalse(self.addr.strong_conflicts(self.addr2)) # Unclear who wins...
+        self.assertFalse(self.addr.strong_conflicts(self.addr_defined))
+        self.assertFalse(self.addr.strong_conflicts(self.addr_default))
+
+        self.assertFalse(self.addr1.strong_conflicts(self.addr))
+        self.assertTrue(self.addr1.strong_conflicts(self.addr1))
+        self.assertTrue(self.addr1.strong_conflicts(self.addr2))
+        self.assertFalse(self.addr1.strong_conflicts(self.addr_defined))
+        self.assertFalse(self.addr1.strong_conflicts(self.addr_default))
+
+        self.assertFalse(self.addr2.strong_conflicts(self.addr))
+        self.assertTrue(self.addr2.strong_conflicts(self.addr1))
+        self.assertTrue(self.addr2.strong_conflicts(self.addr2))
+        self.assertFalse(self.addr2.strong_conflicts(self.addr_defined))
+        self.assertFalse(self.addr2.strong_conflicts(self.addr_default))
+
+        self.assertFalse(self.addr_defined.strong_conflicts(self.addr1))
+        self.assertFalse(self.addr_defined.strong_conflicts(self.addr2))
+        self.assertFalse(self.addr_defined.strong_conflicts(self.addr))
+        self.assertTrue(self.addr_defined.strong_conflicts(self.addr_defined))
+        self.assertFalse(self.addr_defined.strong_conflicts(self.addr_default))
+
+        self.assertFalse(self.addr_default.strong_conflicts(self.addr))
+        self.assertFalse(self.addr_default.strong_conflicts(self.addr1))
+        self.assertFalse(self.addr_default.strong_conflicts(self.addr2))
+        self.assertFalse(self.addr_default.strong_conflicts(self.addr_defined))
+        self.assertTrue(self.addr_default.strong_conflicts(self.addr_default))
+
     def test_equal(self):
         self.assertTrue(self.addr1 == self.addr2)
         self.assertFalse(self.addr == self.addr1)

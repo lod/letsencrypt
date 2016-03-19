@@ -7,6 +7,7 @@ import re
 import shutil
 import socket
 import time
+import copy
 
 import zope.component
 import zope.interface
@@ -327,16 +328,31 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
         elif temp:
             return vhost
         elif not vhost.ssl:
-            addrs = self._get_proposed_addrs(vhost, "443")
-            # TODO: Conflicts is too conservative
-            if not any(vhost.enabled and vhost.conflicts(addrs) for
-                       vhost in self.vhosts):
+            proposed_vhost = copy.deepcopy(vhost)
+            proposed_vhost.addrs = self._get_proposed_addrs(vhost, "443")
+            conflicts = [v for v in self.vhosts if v.strong_conflicts(proposed_vhost)]
+            if vhost.enabled and len(conflicts) == 0:
                 vhost = self.make_vhost_ssl(vhost)
             else:
                 logger.error(
                     "The selected vhost would conflict with other HTTPS "
                     "VirtualHosts within Apache. Please select another "
                     "vhost or add ServerNames to your configuration.")
+                print "CONFLICT"
+                print proposed_vhost
+                for c in conflicts:
+                    print "Conflict XX"
+                    print c
+                for a in proposed_vhost.addrs:
+                    print "\t %s : %s" % (a.get_addr(), a.get_port())
+                for v in self.vhosts:
+                    print "%s: %s %s" % (v.path, v.enabled, v.strong_conflicts(proposed_vhost))
+                    if v.strong_conflicts(proposed_vhost):
+                        print v
+                        for a in v.addrs:
+                            print "%s:%s %s" % (a.get_addr(), a.get_port(), any(a.strong_conflicts(b) for b in proposed_vhost.addrs))
+                        print v.get_names()
+
                 raise errors.PluginError(
                     "VirtualHost not able to be selected.")
 
@@ -1347,6 +1363,7 @@ class ApacheConfigurator(augeas_configurator.AugeasConfigurator):
 
         for vhost in self.vhosts:
             if vhost.ssl:
+                print "CALL"
                 cert_path = self.parser.find_dir(
                     "SSLCertificateFile", None,
                     start=vhost.path, exclude=False)
